@@ -3,6 +3,7 @@
 namespace Cuakx\Core\DTO;
 
 use Illuminate\Http\JsonResponse;
+use Cuakx\Core\Constants\CommonCodes;
 
 /**
  * All API responses are standardized using this DTO.
@@ -53,7 +54,7 @@ class BaseResponseDTO
      *
      * @return JsonResponse
      */
-    public static function success(string $message, ?object $data = null, string $code = "00"): JsonResponse
+    public static function success(string $message, ?object $data = null, string $code = CommonCodes::HTTP_OK): JsonResponse
     {
         return response()->json(new BaseResponseDTO(true, $code, $message, $data));
     }
