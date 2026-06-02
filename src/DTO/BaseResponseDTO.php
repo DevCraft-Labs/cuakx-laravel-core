@@ -3,7 +3,7 @@
 namespace Cuakx\Core\DTO;
 
 use Illuminate\Http\JsonResponse;
-use Cuakx\Core\Constants\CommonCodes;
+use Cuakx\Core\Constant\CommonCodes;
 
 /**
  * All API responses are standardized using this DTO.
