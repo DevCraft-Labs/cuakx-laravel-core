@@ -53,7 +53,7 @@ class BaseResponseDTO
      *
      * @return JsonResponse
      */
-    public static function success(string $message, ?object $data = null, string $code = "200"): JsonResponse
+    public static function success(string $message, ?object $data = null, string $code = "00"): JsonResponse
     {
         return response()->json(new BaseResponseDTO(true, $code, $message, $data));
     }
