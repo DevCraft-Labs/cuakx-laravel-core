@@ -248,7 +248,7 @@ class RedisRepository
      */
     protected function makeKey(string $key): string
     {
-        return $this->prefix . $key;
+        return $this->prefix . ":". $key;
     }
 
     /**
