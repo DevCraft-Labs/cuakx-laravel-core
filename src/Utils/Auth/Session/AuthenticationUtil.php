@@ -2,10 +2,12 @@
 
 namespace Cuakx\Core\Utils\Auth\Session;
 
+use Cuakx\Core\Constant\CommonConstants;
 use Cuakx\Core\Utils\Auth\Session\Exception\UnauthorizedException;
 use Cuakx\Core\Utils\Auth\Session\Model\UserSession;
 use Cuakx\Core\Utils\Redis\RedisRepository;
 use Cuakx\Core\Utils\StringUtil;
+use DateTime;
 
 /**
  * This class contains utilities for making authentication within cuakx project.
@@ -56,10 +58,59 @@ class AuthenticationUtil
             throw new UnauthorizedException();
         }
 
-        return $result_set;
+        if ($result_set instanceof UserSession) {
+            return $result_set;
+        }
+
+        if (is_array($result_set)) {
+            return $this->hydrateUserSession($result_set);
+        }
+
+        throw new UnauthorizedException();
     }
 
     public function distinguishSessionByToken(string $token): void {
+        $token = str_replace("Bearer ", "", $token);
+
         $this->userSessionRepository()->delete($token);
+    }
+
+    /**
+     * Rebuild UserSession from Redis-deserialized associative array.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function hydrateUserSession(array $payload): UserSession
+    {
+        $issuedAt = isset($payload['issued_at'])
+            ? DateTime::createFromFormat(CommonConstants::DATE_DEFAULT_FORMAT, (string) $payload['issued_at'])
+            : false;
+
+        if ($issuedAt === false) {
+            $issuedAt = new DateTime();
+        }
+
+        $session = new UserSession(
+            (int) ($payload['user_id'] ?? 0),
+            (string) ($payload['role_id'] ?? ''),
+            (int) ($payload['access_id'] ?? 0),
+            (string) ($payload['organization_id'] ?? ''),
+            (string) ($payload['user_name'] ?? ''),
+            (string) ($payload['organization_name'] ?? ''),
+            $issuedAt
+        );
+
+        if (isset($payload['expired_at'])) {
+            $expiredAt = DateTime::createFromFormat(
+                CommonConstants::DATE_DEFAULT_FORMAT,
+                (string) $payload['expired_at']
+            );
+
+            if ($expiredAt !== false) {
+                $session->setExpiredAt($expiredAt);
+            }
+        }
+
+        return $session;
     }
 }
