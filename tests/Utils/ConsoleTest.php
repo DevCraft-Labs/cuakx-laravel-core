@@ -2,8 +2,9 @@
 
 namespace Cuakx\Core\Tests\Utils;
 
+use Cuakx\Core\Tests\TestCase;
 use Cuakx\Core\Utils\Console;
-use PHPUnit\Framework\TestCase;
+use Illuminate\Support\Facades\Log;
 
 class ConsoleTest extends TestCase
 {
@@ -54,5 +55,38 @@ class ConsoleTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
         Console::writeLine('no type given', null);
+    }
+
+    public function test_writeLaravelLog_defaults_to_info(): void
+    {
+        Log::spy();
+
+        Console::writeLaravelLog('default level');
+
+        Log::shouldHaveReceived('info')
+            ->once()
+            ->with('default level', []);
+    }
+
+    public function test_writeLaravelLog_maps_error_type(): void
+    {
+        Log::spy();
+
+        Console::writeLaravelLog('something broke', 'e');
+
+        Log::shouldHaveReceived('error')
+            ->once()
+            ->with('something broke', []);
+    }
+
+    public function test_writeLaravelLog_passes_context(): void
+    {
+        Log::spy();
+
+        Console::writeLaravelLog('contexted', 'd', ['job_id' => 12]);
+
+        Log::shouldHaveReceived('debug')
+            ->once()
+            ->with('contexted', ['job_id' => 12]);
     }
 }
