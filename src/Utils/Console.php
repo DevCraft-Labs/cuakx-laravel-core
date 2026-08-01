@@ -2,6 +2,8 @@
 
 namespace Cuakx\Core\Utils;
 
+use Illuminate\Support\Facades\Facade;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Console\Output\ConsoleOutput;
 
 /**
@@ -29,7 +31,7 @@ class Console
      *                             'wtf' = WTF
      *                             Any other value (or null) defaults to LOG.
      */
-    public static function writeLine(string $message, ?string $type = null): void
+    public static function writeLine(string $message, ?string $type = null, bool $auto_log = true): void
     {
         $logType = match ($type) {
             'e'     => 'ERROR',
@@ -45,5 +47,42 @@ class Console
 
         $console = new ConsoleOutput();
         $console->writeln("[{$logType}][{$currentEpoch}] {$message}");
+        if ($auto_log) {
+            self::writeLaravelLog($message, $type);
+        }
+    }
+
+    /**
+     * Writes a message to Laravel's logger.
+     *
+     * @param string      $message The message to log.
+     * @param string|null $type    Log level shorthand:
+     *                             'e'   = error
+     *                             'w'   = warning
+     *                             'v'   = info
+     *                             'i'   = info
+     *                             'd'   = debug
+     *                             'wtf' = critical
+     *                             Any other value (or null) defaults to info.
+     * @param array       $context Additional structured context for the log.
+     */
+    public static function writeLaravelLog(string $message, ?string $type = null, array $context = []): void
+    {
+        $app = Facade::getFacadeApplication();
+        if ($app === null || !$app->bound('log')) {
+            return;
+        }
+
+        $level = match ($type) {
+            'e', 'ERROR' => 'error',
+            'w', 'WARNING' => 'warning',
+            'v', 'VERBOSE' => 'info',
+            'i', 'INFO' => 'info',
+            'd', 'DEBUG' => 'debug',
+            'wtf', 'WTF' => 'critical',
+            default => 'info',
+        };
+
+        Log::{$level}($message, $context);
     }
 }
