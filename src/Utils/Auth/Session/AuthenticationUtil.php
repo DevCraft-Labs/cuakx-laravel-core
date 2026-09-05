@@ -8,24 +8,45 @@ use Cuakx\Core\Utils\Auth\Session\Model\UserSession;
 use Cuakx\Core\Utils\Redis\RedisRepository;
 use Cuakx\Core\Utils\StringUtil;
 use DateTime;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 /**
  * This class contains utilities for making authentication within cuakx project.
  *
  * <ol>
- *     <li>The default key for token is uma_cache_sessions</li>
+ *     <li>The default Redis key for tokens is uma_cache_sessions.</li>
+ *     <li>The database driver stores tokens in the shared cache schema.</li>
  * </ol>
  */
 class AuthenticationUtil
 {
+    public const REDIS_CACHE_NAME = 'uma_cache_sessions';
+    public const DEFAULT_SESSION_SECONDS = 15 * 60;
+
+    private string $driver;
+    private string $databaseConnection;
+    private string $databaseTable;
+
+    public function __construct(
+        ?string $driver = null,
+        ?string $databaseConnection = null,
+        ?string $databaseTable = null,
+    ) {
+        $this->driver = strtolower($driver ?? (string) env('CUAKX_AUTH_SESSION_DRIVER', 'redis'));
+        $this->databaseConnection = $databaseConnection ?? (string) env('CUAKX_AUTH_SESSION_CONNECTION', 'cache');
+        $this->databaseTable = $databaseTable ?? (string) env('CUAKX_AUTH_SESSION_TABLE', 'cache_tbl_auth_sessions');
+
+        if (! in_array($this->driver, ['redis', 'database'], true)) {
+            throw new InvalidArgumentException("Unsupported auth session driver [{$this->driver}].");
+        }
+    }
+
     private function userSessionRepository() {
         return new class extends RedisRepository {
-            private const CACHE_NAME = "uma_cache_sessions";
-            private const DEFAULT_SESSION = 15 * 60; // 15 minutes
-
             public function __construct(string $connection = 'default')
             {
-                parent::__construct(self::CACHE_NAME, self::DEFAULT_SESSION, $connection);
+                parent::__construct(AuthenticationUtil::REDIS_CACHE_NAME, AuthenticationUtil::DEFAULT_SESSION_SECONDS, $connection);
             }
         };
     }
@@ -39,7 +60,19 @@ class AuthenticationUtil
     public function issueToken(UserSession $user_session): string {
         $token = StringUtil::generateGuidV7();
 
-        $this->userSessionRepository()->set($token, $user_session);
+        if ($this->driver === 'database') {
+            $this->databaseSessions()->upsert([
+                [
+                    'token' => $token,
+                    'payload' => json_encode($this->sessionPayload($user_session), JSON_THROW_ON_ERROR),
+                    'expires_at' => $user_session->expired_at,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ], ['token'], ['payload', 'expires_at', 'updated_at']);
+        } else {
+            $this->userSessionRepository()->set($token, $user_session);
+        }
 
         return $token;
     }
@@ -52,7 +85,9 @@ class AuthenticationUtil
      */
     public function getCacheSessionByToken(string $token): UserSession {
         $token = str_replace("Bearer ", "", $token);
-        $result_set = $this->userSessionRepository()->get($token);
+        $result_set = $this->driver === 'database'
+            ? $this->databaseSessionPayload($token)
+            : $this->userSessionRepository()->get($token);
 
         if(!$result_set){
             throw new UnauthorizedException();
@@ -72,7 +107,50 @@ class AuthenticationUtil
     public function distinguishSessionByToken(string $token): void {
         $token = str_replace("Bearer ", "", $token);
 
+        if ($this->driver === 'database') {
+            $this->databaseSessions()->where('token', $token)->delete();
+            return;
+        }
+
         $this->userSessionRepository()->delete($token);
+    }
+
+    private function databaseSessions(): \Illuminate\Database\Query\Builder
+    {
+        return DB::connection($this->databaseConnection)->table($this->databaseTable);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function databaseSessionPayload(string $token): ?array
+    {
+        $record = $this->databaseSessions()
+            ->where('token', $token)
+            ->where('expires_at', '>', now())
+            ->first(['payload']);
+
+        if ($record === null) {
+            $this->databaseSessions()->where('token', $token)->delete();
+            return null;
+        }
+
+        $payload = json_decode((string) $record->payload, true);
+
+        return is_array($payload) ? $payload : null;
+    }
+
+    /** @return array<string, int|string> */
+    private function sessionPayload(UserSession $session): array
+    {
+        return [
+            'user_id' => $session->user_id,
+            'role_id' => $session->role_id,
+            'access_id' => $session->access_id,
+            'organization_id' => $session->organization_id,
+            'user_name' => $session->user_name,
+            'organization_name' => $session->organization_name,
+            'issued_at' => $session->issued_at,
+            'expired_at' => $session->expired_at,
+        ];
     }
 
     /**
