@@ -175,12 +175,12 @@ Console::writeLine('How did we get here.', 'wtf'); // [WTF][...]
 
 ### Authentication Sessions
 
-`AuthenticationUtil` stores access-token sessions in Redis by default. To use a shared database table instead, deploy the `cache_tbl_auth_sessions` migration from the migration runner and configure every token-consuming service with the same values:
+`AuthenticationUtil` stores access-token sessions in Redis by default. To use a shared database table instead, deploy the `cache_token_tbl_auth_sessions` migration from the migration runner and configure every token-consuming service with the same values:
 
 ```dotenv
 CUAKX_AUTH_SESSION_DRIVER=database
-CUAKX_AUTH_SESSION_CONNECTION=cache
-CUAKX_AUTH_SESSION_TABLE=cache_tbl_auth_sessions
+CUAKX_AUTH_SESSION_CONNECTION=cache_token
+CUAKX_AUTH_SESSION_TABLE=cache_token_tbl_auth_sessions
 ```
 
 Database records retain the same 15-minute expiry and are removed on logout or when an expired token is read. Redis remains the default for backward compatibility.

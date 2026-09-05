@@ -16,7 +16,7 @@ use InvalidArgumentException;
  *
  * <ol>
  *     <li>The default Redis key for tokens is uma_cache_sessions.</li>
- *     <li>The database driver stores tokens in the shared cache schema.</li>
+ *     <li>The database driver stores tokens in the shared cache_token schema.</li>
  * </ol>
  */
 class AuthenticationUtil
@@ -34,7 +34,7 @@ class AuthenticationUtil
         ?string $databaseTable = null,
     ) {
         $this->driver = strtolower($driver ?? (string) env('CUAKX_AUTH_SESSION_DRIVER', 'redis'));
-        $this->databaseConnection = $databaseConnection ?? (string) env('CUAKX_AUTH_SESSION_CONNECTION', 'cache');
+        $this->databaseConnection = $databaseConnection ?? (string) env('CUAKX_AUTH_SESSION_CONNECTION', 'cache_token');
         $this->databaseTable = $databaseTable ?? (string) env('CUAKX_AUTH_SESSION_TABLE', 'cache_tbl_auth_sessions');
 
         if (! in_array($this->driver, ['redis', 'database'], true)) {
