@@ -67,6 +67,14 @@ class BaseResponseDTOTest extends TestCase
         $this->assertSame('Alice', $payload['data']['name']);
     }
 
+    public function test_success_with_array_data(): void
+    {
+        $response = BaseResponseDTO::success('Fetched', [['sku' => 'SKU-1']]);
+        $payload = $response->getData(true);
+
+        $this->assertSame('SKU-1', $payload['data'][0]['sku']);
+    }
+
     public function test_success_with_custom_code(): void
     {
         $response = BaseResponseDTO::success('Created', null, '201');

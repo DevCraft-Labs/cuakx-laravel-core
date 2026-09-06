@@ -11,20 +11,20 @@ use Cuakx\Core\Constant\CommonCodes;
  * @property bool        $success Indicates if the request was successful.
  * @property string      $code    A code representing the result of the request.
  * @property string      $message A human-readable message providing more details about the result.
- * @property object|null $data    An optional object containing any data returned by the request.
+ * @property mixed       $data    An optional JSON-serializable value returned by the request.
  */
 class BaseResponseDTO
 {
     public bool $success;
     public string $code;
     public string $message;
-    public ?object $data;
+    public mixed $data;
 
     public function __construct(
         bool $success = true,
         string $code = '',
         string $message = '',
-        ?object $data = null
+        mixed $data = null
     ) {
         $this->success = $success;
         $this->code    = $code;
@@ -49,12 +49,12 @@ class BaseResponseDTO
      * Creates a standardized success response.
      *
      * @param string      $message Message providing more details about the success.
-     * @param object|null $data    An optional object containing any data returned by the request.
+    * @param mixed       $data    An optional JSON-serializable value returned by the request.
      * @param string      $code    HTTP/application code (default: "200").
      *
      * @return JsonResponse
      */
-    public static function success(string $message, ?object $data = null, string $code = CommonCodes::HTTP_OK): JsonResponse
+    public static function success(string $message, mixed $data = null, string $code = CommonCodes::HTTP_OK): JsonResponse
     {
         return response()->json(new BaseResponseDTO(true, $code, $message, $data));
     }
